@@ -76,6 +76,8 @@
   margin-top: auto;
 }
 
+.btn-done-day { flex:none; margin:12px 12px 0; padding:9px 10px; border:1px solid #ef6666; border-radius:6px; background:transparent; color:#ff7777; font:12px/1.2 var(--font-serif); cursor:pointer; }
+
 .sidebar__college {
   display: flex;
   align-items: center;
