@@ -297,15 +297,16 @@ def save_transaction(user, t, mp, prods, meal_ids):
 
     lines = []
     for spec in t.get("lines") or []:
+        if spec.get("type") == "takeout_box":
+            qty = int(spec.get("qty", 1))
+            if not 1 <= qty <= 99: raise SaleError("bad qty")
+            lines.append(dict(name="Takeout box", section="Meals", kind="Add-on", unit_price=mp["take_out_box"], qty=qty, parts={}, product_id=None,
+                              meat=None, meat_qty=None, veg_qty=None, rice_type=None, rice_qty=None, is_budget=False))
+            continue
         prod = prods.get(int(spec["product_id"])) if spec.get("type") == "product" and str(spec.get("product_id", "")).isdigit() else None
         lines.append(build_line(spec, mp, prod))
     if not lines:
         raise SaleError("empty sale")
-    if dine == "Take-out":
-        boxes = sum(l["qty"] for l in lines if l["section"] == "Meals")
-        if boxes:
-            lines.append(dict(name="Take-out box", section="Meals", kind="Add-on", unit_price=mp["take_out_box"], qty=boxes, parts={}, product_id=None,
-                              meat=None, meat_qty=None, veg_qty=None, rice_type=None, rice_qty=None, is_budget=False))
     total = sum(l["unit_price"] * l["qty"] for l in lines)
     tendered = D(t["amount_tendered"]) if pay == "Cash" and t.get("amount_tendered") is not None else None
 
@@ -583,7 +584,7 @@ def cash_summary(ids, day):
 @app.get("/api/remittances/expected")
 @auth("staff")
 def remit_expected():
-    day = today()
+    day = active_sales_day(g.user["aux_id"])
     n = q("""SELECT COALESCE(SUM(total_amount),0) AS n FROM transactions
              WHERE aux_id=%s AND business_date=%s AND payment_method='Cash' AND status='completed'""",
           (g.user["aux_id"], day), one=True)["n"]
@@ -599,7 +600,7 @@ def add_remittance():
         assert amount > 0
     except Exception:
         return err("Enter the amount handed over")
-    day = today()
+    day = active_sales_day(g.user["aux_id"])
     exp = remit_expected().json["expected"]
     run("INSERT INTO remittances (aux_id, business_date, amount, expected_amount, recorded_by) VALUES (%s,%s,%s,%s,%s)",
         (g.user["aux_id"], day, amount, exp, g.user["account_id"]))
@@ -700,6 +701,12 @@ def transactions():
                FROM transactions WHERE status='completed' AND aux_id=ANY(%s) AND business_date BETWEEN %s AND %s
                AND (%s::text IS NULL OR payment_method=%s)""", (ids, frm, to, pay, pay), one=True)
     kpi["remitted"] = q("SELECT COALESCE(SUM(amount),0) AS n FROM remittances WHERE aux_id=ANY(%s) AND business_date BETWEEN %s AND %s", (ids, frm, to), one=True)["n"]
+    remittances = q("""SELECT r.remittance_id, r.business_date, r.amount, r.expected_amount, r.recorded_at, a.name AS aux_name
+                       FROM remittances r JOIN auxiliaries a USING (aux_id)
+                       WHERE r.aux_id=ANY(%s) AND r.business_date BETWEEN %s AND %s
+                       ORDER BY r.recorded_at DESC""", (ids, frm, to))
+    for r in remittances:
+        r["recorded_at"] = r["recorded_at"].astimezone(TZ).isoformat()
 
     # stock summary of the period (this is the paper slip: beginning / received / sold / left)
     stock = q("""SELECT p.product_id, p.name, p.category, p.meal_key, p.price,
@@ -725,7 +732,7 @@ def transactions():
     for r in meals_car:
         for k in MEAL_ORDER:
             carried_sold[k] += r[k]
-    return jsonify({"from": frm, "to": to, "kpi": kpi,
+    return jsonify({"from": frm, "to": to, "kpi": kpi, "remittances": remittances,
                     "meals": {"regular": meals_reg, "carried": meals_car, **ms, "carried_sold": carried_sold,
                               "regular_total": sum(r["total"] for r in meals_reg), "carried_total": sum(r["total"] for r in meals_car)},
                     "snacks": {"summary": summary, "regular": snack_reg, "carried": snack_car,

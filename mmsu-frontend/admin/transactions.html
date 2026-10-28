@@ -79,6 +79,14 @@
           </section>
         </div>
 
+        <section class="card card--scroll">
+          <h2 class="card__title">Remittance history</h2>
+          <table class="table" id="table-remittances">
+            <thead><tr><th>Date &amp; time</th><th>Sales day</th><th>Auxiliary</th><th>Amount handed over</th><th>Cash sales at remittance</th></tr></thead>
+            <tbody><tr class="table__empty"><td colspan="5">No remittances in this date range</td></tr></tbody>
+          </table>
+        </section>
+
         <section class="tabset card card--scroll">
           <input type="radio" name="section" id="section-0" checked>
           <input type="radio" name="section" id="section-1">
@@ -92,7 +100,6 @@
           <section class="tabset__panel">
             <div class="legend">
               <span><span class="dot dot--budget"></span>Budget meal</span>
-              <span><span class="dot dot--takeout"></span>Take-out</span>
             </div>
             <h3 class="table-title">Sales entered on this sales day</h3>
             <table class="table" id="table-meals-regular">

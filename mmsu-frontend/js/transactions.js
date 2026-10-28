@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let auxes = [];
 
   const stamp = (r) => UI.stamp(r.created_at);
-  const dots = (r) => `${r.is_budget ? '<span class="dot dot--budget"></span>' : ""}${r.is_takeout ? '<span class="dot dot--takeout"></span>' : ""}`;
+  const dots = (r) => `${r.is_budget ? '<span class="dot dot--budget"></span>' : ""}`;
   const mealRow = (r) => `<tr><td>${stamp(r)}</td><td>${esc(r.ref)}</td>${admin ? `<td>${esc(r.aux_name)}</td>` : ""}<td>${esc(r.order)}</td><td>${r.pay}</td><td>${esc(r.ref4 || "—")}</td>${PARTS.map((k) => `<td>${r[k] ? num(r[k]) : ""}</td>`).join("")}<td>${money(r.total)}</td><td>${dots(r)}</td></tr>`;
   const snackRow = (r) => `<tr><td>${stamp(r)}</td><td>${esc(r.ref)}</td>${admin ? `<td>${esc(r.aux_name)}</td>` : ""}<td>${esc(r.items)}</td><td>${r.pay}</td><td>${esc(r.ref4 || "—")}</td><td>${money(r.total)}</td></tr>`;
   const empty = (n) => `<tr class="table__empty"><td colspan="${n}">No transactions in this range</td></tr>`;
@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function draw(d) {
     $("#kpi-sales").textContent = money(d.kpi.sales); $("#kpi-cash").textContent = money(d.kpi.cash); $("#kpi-ewallet").textContent = money(d.kpi.ewallet); $("#kpi-remitted").textContent = money(d.kpi.remitted);
+    $("#table-remittances tbody").innerHTML = d.remittances.map((r) => `<tr><td>${stamp({ created_at: r.recorded_at })}</td><td>${esc(r.business_date)}</td>${admin ? `<td>${esc(r.aux_name)}</td>` : ""}<td>${money(r.amount)}</td><td>${r.expected_amount == null ? "—" : money(r.expected_amount)}</td></tr>`).join("") || empty(admin ? 5 : 4);
     const m = d.meals, cols = admin ? 14 : 13;
     $("#table-meals-regular tbody").innerHTML = m.regular.map(mealRow).join("") || empty(cols);
     $("#table-meals-carried tbody").innerHTML = m.carried.map(mealRow).join("") || empty(cols);

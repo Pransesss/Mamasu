@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ---------- price preview (same rules as backend/pricing.py) ---------- */
   function priced(spec) {
     const t = spec.type;
+    if (t === "takeout_box") return { name: "Takeout box", unit: mp.take_out_box || 5, section: "Meals", parts: {} };
     if (t === "product") { const p = boot.products.find((x) => x.product_id === spec.product_id) || { name: "(item no longer sold)", price: 0, product_id: spec.product_id }; return { name: p.name, unit: p.price, section: "Snacks", parts: {}, product: p.product_id }; }
     if (t === "meat") return { name: cap(spec.meat), unit: mp[spec.meat], section: "Meals", parts: { [spec.meat]: 1 } };
     if (t === "veg") return { name: "Veggy", unit: mp.veg, section: "Meals", parts: { veg: 1 } };
@@ -23,8 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   const keyOf = (s) => JSON.stringify({ ...s, qty: 0 });
   const total = () => cart.reduce((n, l) => n + priced(l).unit * l.qty, 0);
-  const boxes = () => (localStorage.getItem("pos_dine") === "out" ? cart.filter((l) => priced(l).section === "Meals").reduce((n, l) => n + l.qty, 0) : 0);
-  const grand = () => total() + boxes() * (mp.take_out_box || 5);
+  const grand = () => total();
   const needOf = (lines) => { const n = {}; lines.forEach((l) => { const p = priced(l); Object.entries(p.parts).forEach(([k, v]) => (n["meal:" + k] = (n["meal:" + k] || 0) + v * l.qty)); if (p.product) n[p.product] = (n[p.product] || 0) + l.qty; }); return n; };
   function shortItem(lines) {          // returns the name of something we do not have enough of, or ""
     for (const [k, v] of Object.entries(needOf(lines))) {
@@ -47,8 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     ul.innerHTML = cart.length ? cart.map((l, i) => { const p = priced(l);
       return `<li class="order__line"><span>${UI.esc(p.name)}</span><span class="stepper"><button class="stepper__btn" type="button" data-dec="${i}">−</button><span>${l.qty}</span><button class="stepper__btn" type="button" data-inc="${i}">+</button></span><span class="order__line-amount">${UI.money(p.unit * l.qty)}</span></li>`; }).join("")
       : '<li class="order__empty">No items yet</li>';
-    $("#order-dine").hidden = !cart.some((l) => priced(l).section === "Meals");
-    $("#order-box-fee").textContent = `Take-out box × ${boxes()} = ${UI.money(boxes() * (mp.take_out_box || 5))}`;
+    const boxLine = cart.find((l) => l.type === "takeout_box");
+    $("#order-box-count").textContent = `Takeout boxes: ${boxLine ? boxLine.qty : 0}`;
     $("#order-total").textContent = UI.money(grand());
     const given = parseFloat($("#cash-tendered").value || 0);
     $("#order-change").textContent = UI.money(Math.max(0, given - grand()));
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (inc !== undefined) addSpec({ ...cart[inc], qty: 1 });
     if (dec !== undefined) { cart[dec].qty--; if (cart[dec].qty <= 0) cart.splice(dec, 1); save("pos_cart", cart); render(); }
   });
-  $$all("input[name=dine]").forEach((r) => r.addEventListener("change", () => { localStorage.setItem("pos_dine", $("#dine-out").checked ? "out" : "in"); render(); }));
+  $("#btn-add-box").addEventListener("click", () => addSpec({ type: "takeout_box", qty: 1 }));
   $$all("input[name=pay]").forEach((r) => r.addEventListener("change", () => localStorage.setItem("pos_pay", $("#pay-1").checked ? "ewallet" : "cash")));
   $("#cash-tendered").addEventListener("input", render);
   $("#ewallet-ref4").addEventListener("input", (e) => (e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4)));
@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const now = UI.isoNow(), code = UI.session().user.aux_code;
     const txn = { id: UI.uuid(), receipt_no: `${code}-${now.slice(0, 10).replace(/-/g, "")}-${UI.uuid().slice(0, 4).toUpperCase()}`, created_at: now,
       payment_method: ewallet ? "E-Wallet" : "Cash", amount_tendered: ewallet ? null : tendered, ewallet_ref4: ewallet ? ref4 : null,
-      dine: localStorage.getItem("pos_dine") === "out" ? "out" : "in", lines: cart.map((l) => ({ ...l })) };
+      dine: "in", lines: cart.map((l) => ({ ...l })) };
     await Store.put("outbox", { id: txn.id, payload: txn, status: "pending" });       // 1. safe on the device
     await Sync.useStock(needOf(cart));                                                // lower the saved stock
     Object.entries(needOf(cart)).forEach(([k, v]) => { if (k.startsWith("meal:")) boot.meal_stock[k.slice(5)] -= v; else boot.products.find((p) => String(p.product_id) === k).qty -= v; });
@@ -95,7 +95,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   mp = boot.meal_prices;
   UI.$$("[data-price]").forEach((el) => (el.textContent = UI.money(mp[el.dataset.price.replace("_only", "")])));
   const doneBtn = $("#btn-done-day");
+  const closeKey = `sales-day-closed:${UI.session().user.aux_id}:${boot.sales_day}`;
+  if (localStorage.getItem(closeKey)) { doneBtn.disabled = true; doneBtn.textContent = "Sales day closed"; }
   doneBtn.addEventListener("click", async () => {
+    if (doneBtn.disabled) return;
     if (cart.length) return UI.toast("Finish or cancel the current sale first");
     const ov = UI.modal(`<h2 class="card__title">Close sales day?</h2><p class="muted text-small">This finalizes the current sales day for remittance. You can keep using the POS; new sales will be recorded under the next sales day.</p><label for="close-day-password">Confirm with your password</label><input type="password" id="close-day-password" autocomplete="current-password" placeholder="Password"><div class="modal__actions"><button class="btn" id="close-day-confirm" type="button">Confirm</button><button class="btn btn--ghost" data-close type="button">Cancel</button></div>`);
     ov.querySelector("#close-day-confirm").addEventListener("click", async () => {
@@ -103,11 +106,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!password) return UI.toast("Enter your password");
       try {
         const result = await api("/api/sales-day/close", { method: "POST", body: { password } });
+        localStorage.setItem(closeKey, "1"); doneBtn.disabled = true; doneBtn.textContent = "Sales day closed";
         ov.remove(); UI.toast(`Sales day closed. New sales are recorded for ${result.sales_day}.`);
       } catch (e) { UI.toast(e.message); }
     });
   });
-  const dine = localStorage.getItem("pos_dine") === "out" ? "#dine-out" : "#dine-in"; $(dine).checked = true;
   if (localStorage.getItem("pos_pay") === "ewallet") $("#pay-1").checked = true;
 
   /* quick tiles (snacks with no barcode, best sellers first) */

@@ -73,16 +73,8 @@
               <li class="order__empty">No items yet</li>
             </ul>
 
-            <!-- Dine in / Take out: show only when the sale has a meal -->
-            <div class="order__dine" id="order-dine">
-              <div class="segmented">
-                <input type="radio" name="dine" id="dine-in" value="in" checked>
-                <label for="dine-in">Dine in</label>
-                <input type="radio" name="dine" id="dine-out" value="out">
-                <label for="dine-out">Take out +₱5 per meal</label>
-              </div>
-              <p class="muted text-small" id="order-box-fee">Take-out box × 0 = ₱0.00</p>
-            </div>
+            <button class="btn btn--ghost" type="button" id="btn-add-box">+ Takeout box</button>
+            <p class="muted text-small" id="order-box-count">Takeout boxes: 0</p>
 
             <div class="order__total">
               <span>Total</span>
