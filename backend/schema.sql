@@ -56,7 +56,7 @@ CREATE TABLE products (
   meal_key           TEXT UNIQUE,                  -- rice, pork, beef, chicken, fish, veg (only for the meal servings)
   price              NUMERIC(10,2) NOT NULL DEFAULT 0,
   low_stock_level    INTEGER NOT NULL DEFAULT 15,
-  use_for_prediction BOOLEAN NOT NULL DEFAULT TRUE,
+  use_for_prediction BOOLEAN NOT NULL DEFAULT FALSE,
   is_active          BOOLEAN NOT NULL DEFAULT TRUE
 );
 

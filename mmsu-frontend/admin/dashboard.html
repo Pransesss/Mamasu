@@ -13,22 +13,23 @@
   </head>
   <body>
     <div class="app">
-      <!-- SIDEBAR: identical on every staff page, only .is-active moves -->
+      <!-- SIDEBAR: identical on every admin page, only .is-active moves -->
       <aside class="sidebar">
         <img class="logo" src="../logos/mamasu.png" alt="MMSU seal">
         <span class="sidebar__label">Menu</span>
         <nav class="nav">
           <a class="nav-item nav-item--dashboard is-active" href="dashboard.html">Dashboard</a>
-          <a class="nav-item nav-item--pos" href="pos.html">POS</a>
-          <a class="nav-item nav-item--receiving" href="receiving.html">Receiving</a>
+          <a class="nav-item nav-item--deliveries" href="deliveries.html">Deliveries</a>
           <a class="nav-item nav-item--inventory" href="inventory.html">Inventory</a>
           <a class="nav-item nav-item--transactions" href="transactions.html">Transactions</a>
+          <a class="nav-item nav-item--events" href="events.html">Events</a>
+          <a class="nav-item nav-item--settings" href="settings.html">Settings</a>
         </nav>
         <div class="sidebar__footer">
           <div class="sidebar__college">
             <!-- replace with: <img class="sidebar__college-logo" src="../logos/college.png" alt=""> -->
             <span class="sidebar__college-logo"></span>
-            <span id="sidebar-college">College of Arts and Sciences</span>
+            <span id="sidebar-college">Administrator</span>
           </div>
           <a class="nav-item nav-item--logout" href="../login.html">Log out</a>
         </div>
@@ -36,15 +37,17 @@
       <main class="main">
         <header class="page-header">
           <div>
-            <h1>Demand Dashboard</h1>
+            <h1>Admin Dashboard</h1>
             <p class="muted text-small" id="today-label">Saturday, September 26</p>
           </div>
           <div class="page-header__actions">
+            <select id="filter-aux">
+              <option value="all">All auxiliaries</option>
+              <!-- JS: one option per auxiliary -->
+            </select>
             <input type="date" id="filter-date">
           </div>
         </header>
-        <!-- shows only when a delivery is waiting: remove [hidden] to preview -->
-        <a class="banner banner--info" href="receiving.html" id="banner-delivery" hidden>1 delivery waiting for you to check and accept →</a>
         <!-- shows only when tomorrow has an event: remove [hidden] to preview -->
         <div class="banner banner--warn" id="banner-event" hidden>Tomorrow: National Family Week (No classes / ADM) — prediction adjusted</div>
 
@@ -132,20 +135,25 @@
                 <div class="rows__item text-danger"><dt>Remittances</dt><dd>:</dd><dd id="cash-remitted">—</dd></div>
                 <div class="rows__item"><dt><strong>Total</strong></dt><dd>:</dd><dd id="cash-total-row"><strong>—</strong></dd></div>
               </dl>
-              <p class="muted text-small" style="margin-top:6px">Sales are grouped by the actual calendar sales day.</p>
+              <p class="muted text-small" style="margin-top:6px">Cut-off 1:45 PM: later sales count on the next business day.</p>
             </section>
 
             <section class="card">
               <h2 class="card__title">Sales this week</h2>
               <div class="chart" id="chart-weekly">Line chart: last 7 business days</div>
             </section>
+        <section class="card">
+          <h2 class="card__title">Sales by auxiliary</h2>
+          <div id="sales-by-aux">
+            <!-- JS: <div class="meter"><span>Name</span><strong>₱0.00</strong><div class="meter__bar" style="width:60%"></div></div> -->
+          </div>
+        </section>
           </div>
         </div>
       </main>
     </div>
-    <script src="../js/common.js"></script>
+    <script src="../js/common.js?v=20261024-logo2"></script>
     <script src="../js/api.js"></script>
-    <script src="../js/offline.js"></script>
     <script src="../js/dashboard.js"></script>
   </body>
 </html>
