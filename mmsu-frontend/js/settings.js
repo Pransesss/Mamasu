@@ -8,7 +8,20 @@ document.addEventListener("DOMContentLoaded", () => {
     UI.$$("[data-settings-tab]").forEach((t) => t.classList.toggle("is-active", t === tab));
     $("#settings-auxiliary").hidden = name !== "auxiliary";
     $("#settings-accounts").hidden = name !== "accounts";
+    $("#settings-prediction").hidden = name !== "prediction";
   }));
+
+  async function loadPredictionProducts() {
+    const rows = await api("/api/prediction-products");
+    $("#table-prediction-products tbody").innerHTML = rows.map((p) => `<tr><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td><label class="chip-toggle"><input type="checkbox" data-prediction-id="${p.product_id}" ${p.use_for_prediction ? "checked" : ""}><span class="chip">${p.use_for_prediction ? "Included" : "Excluded"}</span></label></td></tr>`).join("") || '<tr class="table__empty"><td colspan="3">No products yet</td></tr>';
+  }
+  $("#table-prediction-products").addEventListener("change", async (e) => {
+    const box = e.target.closest("[data-prediction-id]"); if (!box) return;
+    try {
+      await api(`/api/products/${box.dataset.predictionId}/prediction`, { method: "PATCH", body: { use_for_prediction: box.checked } });
+      loadPredictionProducts();
+    } catch (err) { box.checked = !box.checked; UI.toast(err.message); }
+  });
 
   async function loadAccounts() {
     accounts = await api("/api/accounts");
@@ -104,5 +117,5 @@ document.addEventListener("DOMContentLoaded", () => {
       e.target.reset(); UI.toast("Auxiliary added"); loadAux(); loadAccounts();
     } catch (err) { UI.toast(err.message); }
   });
-  loadAccounts(); loadAux();
+  loadAccounts(); loadAux(); loadPredictionProducts();
 });

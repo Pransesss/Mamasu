@@ -45,6 +45,7 @@
         <div class="admin-tabs" role="tablist" aria-label="Settings sections">
           <button class="admin-tab is-active" type="button" data-settings-tab="auxiliary">Auxiliary</button>
           <button class="admin-tab" type="button" data-settings-tab="accounts">Accounts</button>
+          <button class="admin-tab" type="button" data-settings-tab="prediction">Prediction</button>
         </div>
 
         <section class="admin-section" id="settings-auxiliary">
@@ -110,10 +111,20 @@
             </section>
           </div>
         </section>
+        <section class="admin-section" id="settings-prediction" hidden>
+          <section class="card card--scroll">
+            <h2 class="card__title">Items used for waste prediction</h2>
+            <p class="muted text-small">Include only prepared or perishable items, such as meals, turon, and puto.</p>
+            <table class="table" id="table-prediction-products">
+              <thead><tr><th>Item</th><th>Category</th><th>Include</th></tr></thead>
+              <tbody><tr class="table__empty"><td colspan="3">No data yet</td></tr></tbody>
+            </table>
+          </section>
+        </section>
       </main>
     </div>
     <script src="../js/common.js?v=20261024-logo2"></script>
     <script src="../js/api.js"></script>
-    <script src="../js/settings.js?v=20261024-logo2"></script>
+    <script src="../js/settings.js?v=20261029-prediction"></script>
   </body>
 </html>

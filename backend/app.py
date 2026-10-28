@@ -79,9 +79,12 @@ def today():
     return datetime.now(TZ).date()
 
 
-def business_date(created_local):
-    """A sales day follows the actual calendar date in the MMSU timezone."""
-    return created_local.date()
+def active_sales_day(aux_id):
+    """The open sales day. Closing one immediately opens the following day."""
+    ensure_sales_day_table()
+    latest = q("SELECT MAX(business_date) AS day FROM sales_day_closures WHERE aux_id=%s", (aux_id,), one=True)["day"]
+    next_open = latest + timedelta(days=1) if latest else today()
+    return max(today(), next_open)
 
 
 def ensure_sales_day_table():
@@ -94,11 +97,6 @@ def ensure_sales_day_table():
         UNIQUE (aux_id, business_date)
     )""")
     conn().commit()
-
-
-def sales_day_closed(aux_id, day):
-    row = q("SELECT 1 FROM sales_day_closures WHERE aux_id=%s AND business_date=%s", (aux_id, day), one=True)
-    return bool(row)
 
 
 def parse_day(s, default=None):
@@ -263,11 +261,11 @@ def pos_bootstrap():
         WHERE p.is_active AND p.category <> 'Meals' ORDER BY p.name""", {"aux": aux, "d": today()})
     meals = {r["meal_key"]: r["qty_on_hand"] for r in q(
         "SELECT p.meal_key, i.qty_on_hand FROM products p JOIN inventory i ON i.product_id=p.product_id AND i.aux_id=%s WHERE p.category='Meals'", (aux,))}
-    day = today()
+    day = active_sales_day(aux)
     return jsonify({"products": products, "meal_stock": meals,
                     "meal_prices": {r["price_key"]: r["amount"] for r in q("SELECT price_key, amount FROM meal_prices")},
                     "settings": settings(), "user": public_user(g.user), "server_time": datetime.now(TZ).isoformat(),
-                    "sales_day": day, "sales_day_closed": sales_day_closed(aux, day)})
+                    "sales_day": day})
 
 
 # ---------------------------------------------------------------- saving sales (also used when an offline outbox syncs)
@@ -284,11 +282,10 @@ def save_transaction(user, t, mp, prods, meal_ids):
     except (KeyError, ValueError):
         raise SaleError("bad time")
     created = (created if created.tzinfo else created.replace(tzinfo=TZ)).astimezone(TZ)
-    biz = business_date(created)
     aux = user["aux_id"]
-    ensure_sales_day_table()
-    if sales_day_closed(aux, biz):
-        raise SaleError(f"Sales for {biz.isoformat()} are already closed")
+    # A sale made after a close belongs to the sales day opened by that close.
+    # Its timestamp remains the actual time it was punched into the POS.
+    biz = active_sales_day(aux)
 
     pay = t.get("payment_method")
     if pay not in ("Cash", "E-Wallet"):
@@ -366,14 +363,14 @@ def close_sales_day():
         return err("Enter your password")
     if not check_password_hash(g.user["password_hash"], password):
         return err("Incorrect password")
-    day = today()
-    if sales_day_closed(g.user["aux_id"], day):
-        return err("Today's sales day is already closed")
+    day = active_sales_day(g.user["aux_id"])
+    if day > today():
+        return err("The next sales day is already open. Close it when you remit tomorrow.")
     run("INSERT INTO sales_day_closures (aux_id, business_date, closed_by) VALUES (%s,%s,%s)",
         (g.user["aux_id"], day, g.user["account_id"]))
     audit("sales_day_closed", f"{g.user['aux_id']} {day.isoformat()}")
     conn().commit()
-    return jsonify({"ok": True, "date": day, "closed": True})
+    return jsonify({"ok": True, "closed_date": day, "sales_day": day + timedelta(days=1)})
 
 
 # ---------------------------------------------------------------- inventory + products
@@ -385,7 +382,7 @@ def stock_status(qty, level):
 @auth()
 def inventory():
     ids = scope(request.args.get("aux"))
-    rows = q("""SELECT p.product_id, p.name, p.barcode, p.category, p.price, p.low_stock_level, i.qty_on_hand AS qty,
+    rows = q("""SELECT p.product_id, p.name, p.barcode, p.category, p.price, p.low_stock_level, p.use_for_prediction, i.qty_on_hand AS qty,
                        (i.is_active AND p.is_active) AS is_active, a.aux_id, a.name AS aux_name
                 FROM inventory i JOIN products p ON p.product_id = i.product_id JOIN auxiliaries a ON a.aux_id = i.aux_id
                 WHERE i.aux_id = ANY(%s) AND p.category <> 'Meals'
@@ -466,6 +463,27 @@ def edit_product(pid):
     except ValueError as e:
         conn().rollback()
         return err(str(e))
+
+
+@app.get("/api/prediction-products")
+@auth("admin")
+def prediction_products():
+    return jsonify(q("""SELECT product_id, name, category, use_for_prediction
+                      FROM products WHERE is_active ORDER BY category, name"""))
+
+
+@app.patch("/api/products/<int:pid>/prediction")
+@auth("admin")
+def set_product_prediction(pid):
+    d = request.get_json(silent=True) or {}
+    if "use_for_prediction" not in d:
+        return err("Choose whether this item is included in prediction")
+    if not q("SELECT 1 FROM products WHERE product_id=%s", (pid,), one=True):
+        return err("Product not found", 404)
+    run("UPDATE products SET use_for_prediction=%s WHERE product_id=%s", (bool(d["use_for_prediction"]), pid))
+    audit("prediction_product_changed", str(pid))
+    conn().commit()
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------- deliveries (admin lists what to send, staff counts and accepts)
@@ -700,7 +718,7 @@ def transactions():
     for s in stock:
         if s["category"] == "Meals":
             ms["received"][s["meal_key"]], ms["sold"][s["meal_key"]], ms["left"][s["meal_key"]] = s["rcvd"], s["sold"], s["left"]
-        elif any(s[k] for k in ("beg", "rcvd", "sold", "left")):
+        elif s["sold"]:
             summary.append({"name": s["name"], "beg": s["beg"], "rcvd": s["rcvd"], "total": s["beg"] + s["rcvd"], "sold": s["sold"], "left": s["left"],
                             "price": s["price"], "sales": sales_by_product.get(s["product_id"], 0)})
     carried_sold = dict(zero)

@@ -72,7 +72,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /* ---------- complete sale: save on the device first, then sync ---------- */
   $("#btn-complete").addEventListener("click", async () => {
-    if (salesDayClosed) return UI.toast("Today's sales are already closed");
     if (!cart.length) return UI.toast("Add an item first");
     const ewallet = $("#pay-1").checked, tendered = parseFloat($("#cash-tendered").value || 0), ref4 = $("#ewallet-ref4").value, t = grand();
     if (ewallet && !/^\d{4}$/.test(ref4)) return UI.toast("Enter the last 4 digits of the e-wallet reference number");
@@ -95,25 +94,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!boot) { UI.toast("Connect to the internet once to download the products and prices."); return; }
   mp = boot.meal_prices;
   UI.$$("[data-price]").forEach((el) => (el.textContent = UI.money(mp[el.dataset.price.replace("_only", "")])));
-  let salesDayClosed = !!boot.sales_day_closed;
-  const completeBtn = $("#btn-complete"), doneBtn = $("#btn-done-day");
-  function updateSalesDayUI() {
-    completeBtn.disabled = salesDayClosed;
-    completeBtn.textContent = salesDayClosed ? "SALES DAY CLOSED" : "COMPLETE SALE";
-    doneBtn.disabled = salesDayClosed;
-    doneBtn.textContent = salesDayClosed ? "SALES DAY CLOSED" : "DONE FOR TODAY";
-  }
-  updateSalesDayUI();
+  const doneBtn = $("#btn-done-day");
   doneBtn.addEventListener("click", async () => {
-    if (salesDayClosed) return;
     if (cart.length) return UI.toast("Finish or cancel the current sale first");
-    const ov = UI.modal(`<h2 class="card__title">Done for Today?</h2><p class="muted text-small">This will close today’s sales for this auxiliary. Sales cannot be added to today after it is closed.</p><label for="close-day-password">Confirm with your password</label><input type="password" id="close-day-password" autocomplete="current-password" placeholder="Password"><div class="modal__actions"><button class="btn" id="close-day-confirm" type="button">Confirm</button><button class="btn btn--ghost" data-close type="button">Cancel</button></div>`);
+    const ov = UI.modal(`<h2 class="card__title">Close sales day?</h2><p class="muted text-small">This finalizes the current sales day for remittance. You can keep using the POS; new sales will be recorded under the next sales day.</p><label for="close-day-password">Confirm with your password</label><input type="password" id="close-day-password" autocomplete="current-password" placeholder="Password"><div class="modal__actions"><button class="btn" id="close-day-confirm" type="button">Confirm</button><button class="btn btn--ghost" data-close type="button">Cancel</button></div>`);
     ov.querySelector("#close-day-confirm").addEventListener("click", async () => {
       const password = ov.querySelector("#close-day-password").value;
       if (!password) return UI.toast("Enter your password");
       try {
-        await api("/api/sales-day/close", { method: "POST", body: { password } });
-        ov.remove(); salesDayClosed = true; updateSalesDayUI(); UI.toast("Today's sales are now closed");
+        const result = await api("/api/sales-day/close", { method: "POST", body: { password } });
+        ov.remove(); UI.toast(`Sales day closed. New sales are recorded for ${result.sales_day}.`);
       } catch (e) { UI.toast(e.message); }
     });
   });

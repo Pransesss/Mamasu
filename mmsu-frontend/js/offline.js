@@ -55,9 +55,9 @@ const Sync = {
   async badge() {
     const el = UI.$("#online-badge");
     if (!el) return;
-    const n = (await this.pending()).length, bad = (await this.rejected()).length;
+    const n = (await this.pending()).length;
     el.className = "badge " + (navigator.onLine ? "badge--online" : "badge--warn");
-    el.textContent = (navigator.onLine ? "Online" : "Offline") + (n ? ` · ${n} waiting to sync` : "") + (bad ? ` · ${bad} need attention` : "");
+    el.textContent = (navigator.onLine ? "Online" : "Offline") + (n ? ` · ${n} waiting to sync` : "");
   },
 
   /* products, prices and stock for the POS. Online = fresh copy from the server (saved on the device). Offline = the saved copy. */
