@@ -1,0 +1,144 @@
+/* base.css — variables, reset, typography, form controls, buttons, utilities */
+
+:root {
+  --bg: #27272a;
+  --panel: #2c2e2f;
+  --field: #323435;
+  --line: #3a3d3c;
+  --edge: #343a36;
+  --text: #ecefec;
+  --muted: #9a9f9b;
+  --green: #0c4b05;
+  --green-soft: #8fe3a0;
+  --green-bg: #2b4a2e;
+  --blue-tab: #25394d;
+  --red: #e5534b;
+  --amber: #e0a43c;
+  --blue: #4a90e2;
+  --orange: #f0912f;
+  --radius: 8px;
+  --font-sans: "Inter", "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 400;
+}
+
+h1 {
+  font: 400 18px/1.2 var(--font-serif);
+}
+
+h2 { font-size: 12px; color: var(--muted); }
+h3 { font: 400 16px/1.2 var(--font-sans); }
+p  { margin: 0; }
+
+a {
+  color: var(--green-soft);
+  text-decoration: none;
+}
+
+/* the hidden attribute must always win over component display rules */
+[hidden] { display: none !important; }
+
+/* ---------- forms ---------- */
+input,
+select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+}
+
+label {
+  display: block;
+  margin: 8px 0 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--green);
+  color: #fff;
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.btn--ghost {
+  background: #2f3132;
+  color: var(--text);
+}
+
+.btn--block { width: 100%; }
+
+.link-button {
+  border: 0;
+  background: none;
+  color: #7fbf8c;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* small rounded button, e.g. "Open →" */
+.pill {
+  padding: 3px 12px;
+  border-radius: 12px;
+  background: #3a3c3d;
+  color: var(--text);
+  font-size: 10px;
+}
+
+/* ---------- utilities ---------- */
+.muted       { color: var(--muted); }
+.text-small  { font-size: 11px; }
+.text-center { text-align: center; }
+.text-right  { text-align: right; }
+.text-danger { color: var(--red); }
+.text-warn   { color: var(--amber); }
+.text-good   { color: var(--green-soft); }
+.grow        { flex: 1; }
+
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
